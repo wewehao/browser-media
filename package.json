@@ -1,0 +1,28 @@
+{
+  "name": "browser-media",
+  "version": "0.0.1",
+  "description": "browser-media 提供了在浏览器环境下通过摄像头拍照和录像的API",
+  "homepage": "",
+  "main": "dist/main",
+  "keywords": [ "camera", "browser media" ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:thevvh/browser-media.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thevvh/browser-media/issues"
+  },
+  "author": "thevvh",
+  "license": "MIT",
+  "scripts": {
+    "build": "webpack --config bin/build.config.js"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "terser-webpack-plugin": "^4.2.3",
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12",
+    "html2canvas": "^1.0.0-rc.7"
+  }
+}

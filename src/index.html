@@ -1,0 +1,89 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>Nde Media测试</title>
+  <script src="./html2canvas.js"></script>
+  <script src="./main.js"></script>
+  <!--  <script src="../dist/main.js"></script>-->
+  <script src="./jquery.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    .main {
+      width: 100vw;
+      height: 100vh;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      position: fixed;
+      top: 50px;
+      z-index: 1;
+      width: 100%;
+      text-align: center;
+    }
+
+    .btn button {
+      cursor: pointer;
+    }
+
+    #video-test {
+      margin-bottom: 20px;
+      width: 100%;
+    }
+
+    #image-test {
+      margin-bottom: 20px;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+<div class="main">
+  <div class="videoEl"></div>
+</div>
+<div class="btn">
+  <button class="start">拍照</button>
+  <button class="startRecode">开始录像</button>
+  <button class="stopRecode">结束录像</button>
+</div>
+
+<img id="image-test"/>
+
+<video id="video-test" controls></video>
+
+<script>
+  $(function () {
+    const Media = NdeMedia({
+      el: '.videoEl',
+      type: 'image' // image || video
+    })
+    Media.open();
+
+    $('.start').click(async () => {
+      window.scrollTo({ top: 0 });
+      const urlCreator = window.URL || window.webkitURL;
+      const imageUrl = urlCreator.createObjectURL(await Media.shot());
+      document.querySelector('#image-test').src = imageUrl;
+    });
+
+    $('.startRecode').click(async () => {
+      Media.setMediaType('video');
+      Media.startRecord();
+    });
+
+    $('.stopRecode').click(async () => {
+      Media.stopRecord(blob => {
+        document.querySelector('#video-test').src = blob;
+      });
+    });
+  });
+</script>
+</body>
+</html>
