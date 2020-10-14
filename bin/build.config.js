@@ -1,6 +1,6 @@
 const TerserPlugin = require('terser-webpack-plugin');
 const path = require('path');
-const webpack = require('webpack');
+// const webpack = require('webpack');
 
 module.exports = {
   entry: {
@@ -12,9 +12,8 @@ module.exports = {
     publicPath: '/dist/',
   },
   plugins: [
-    new webpack.ProvidePlugin({
-      html2canvas: 'html2canvas'
-    })
+    // new webpack.ProvidePlugin({
+    // })
   ],
   optimization: {
     minimizer: [
@@ -22,11 +21,11 @@ module.exports = {
         cache: true,
         parallel: true,
         terserOptions: {
-          compress: false,
+          compress: true,
           ecma: 6,
           mangle: true
         },
-        sourceMap: true
+        sourceMap: false
       })
     ]
   }

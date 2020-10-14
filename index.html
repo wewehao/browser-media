@@ -3,11 +3,11 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <title>Nde Media测试</title>
-  <script src="./html2canvas.js"></script>
-  <script src="./main.js"></script>
-  <!--  <script src="../dist/main.js"></script>-->
-  <script src="./jquery.min.js"></script>
+  <title>Media测试</title>
+  <script src="./lib/webdsp.js"></script>
+  <script src="./src/main.js"></script>
+<!--  <script src="./dist/main.js"></script>-->
+  <script src="./src/jquery.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -15,8 +15,6 @@
     }
 
     .main {
-      width: 100vw;
-      height: 100vh;
       margin-bottom: 20px;
     }
 
@@ -30,6 +28,7 @@
 
     .btn button {
       cursor: pointer;
+      margin: 8px;
     }
 
     #video-test {
@@ -60,14 +59,15 @@
 
 <script>
   $(function () {
-    const Media = NdeMedia({
+    const Media = BrowserMedia({
       el: '.videoEl',
-      type: 'image' // image || video
-    })
+      type: 'image', // image || video
+    });
     Media.open();
 
     $('.start').click(async () => {
       window.scrollTo({ top: 0 });
+      Media.setMediaType('image');
       const urlCreator = window.URL || window.webkitURL;
       const imageUrl = urlCreator.createObjectURL(await Media.shot());
       document.querySelector('#image-test').src = imageUrl;
@@ -83,6 +83,23 @@
         document.querySelector('#video-test').src = blob;
       });
     });
+
+    function addButtons() {
+      const filters = [ 'Normal', 'Grayscale', 'Invert', 'Bacteria', 'Sunset',
+        'Emboss', 'Super Edge', 'Super Edge Inv',
+        'Gaussian Blur', 'Moss', 'Robbery', 'Brighten', 'Swamp', 'Ghost', 'Good Morning', 'Acid', 'Urple', 'Romance', 'Hippo', 'Longhorn', 'Security', 'Underground', 'Rooster', 'Mist', 'Tingle', 'Kaleidoscope', 'Noise', 'Forest', 'Dewdrops', 'Analog TV', 'Color Destruction', 'Hulk Edge', 'Twisted', 'Clarity', 'Sharpen', 'Uber Sharpen' ];
+      for (let i = 0; i < filters.length; i++) {
+        const button = document.createElement('button');
+        button.innerText = filters[i];
+        button.addEventListener('click', function () {
+          const filter = filters[i];
+          Media.setFilter(filter);
+        });
+        document.querySelector('.btn').appendChild(button);
+      }
+    }
+
+    addButtons();
   });
 </script>
 </body>

@@ -17,14 +17,15 @@
 
   function initFn(set) {
     const o = {
-      // video: {
-      //   facingMode: 'environment',
-      //   width: 1,
-      //   height: 1
-      // },
-      video: true,
+      video: {
+        facingMode: 'environment',
+        width: 1280,
+        height: 720
+      },
+      // video: true,
       audio: true,
       type: 'image',
+      filter: 'Normal'
     };
     if (typeof set === 'object') {
       if (set) {
@@ -32,62 +33,53 @@
           o[k] = set[k];
         }
       }
-    } else {
-      o.el = set;
     }
-
     this.set = o;
+  }
+
+  function createCanvas(set) {
+    if (!document.querySelector('#canvas')) {
+      const canvas = document.createElement('canvas');
+      canvas.id = 'canvas';
+      canvas.style.width = '100%';
+      if (set.type === 'image' || !set.type) {
+        // canvas.style.height = '100%';
+      }
+      if (set.type === 'video') {
+        canvas.style.height = 'auto';
+      }
+      document.querySelector(set.el).parentNode.replaceChild(canvas, document.querySelector(set.el));
+    }
+    return document.querySelector('#canvas');
   }
 
   function createVideo(set) {
     if (!document.querySelector('#video')) {
       const video = document.createElement('video');
       video.id = 'video';
-      video.style.width = '100%';
-      if (set.type === 'image' || !set.type) {
-        video.style.height = '100%';
-        video.style.objectFit = 'cover';
-      }
-      if (set.type === 'video') {
-        video.style.height = 'auto';
-        video.style.objectFit = 'contain';
-      }
-      document.querySelector(set.el).parentNode.replaceChild(video, document.querySelector(set.el));
+      video.style.display = 'none';
+      document.querySelector('#canvas').parentNode.appendChild(video);
     }
     return document.querySelector('#video');
   }
 
-  function setMediaType(type) {
-    const video = document.querySelector('#video');
-    if (type === 'video') {
-      video.style.height = 'auto';
-      video.style.objectFit = 'contain';
-    }
-    if (type === 'image') {
-      video.style.height = '100%';
-      video.style.objectFit = 'cover';
-    }
-  }
-
   function createImg() {
-    if (!document.querySelector('#img')) {
-      const img = document.createElement('img');
-      img.id = 'img';
+    if (!document.querySelector('#media-icon')) {
+      const img = document.createElement('i');
+      img.id = 'media-icon';
       img.style.position = 'absolute';
       img.style.top = '-100%';
       img.style.left = '-100%';
       document.body.appendChild(img);
     }
+    return document.querySelector('#media-icon');
   }
 
   function base64ToBlob(dataUrl, type) {
     const arr = dataUrl.split(',');
     const mime = arr[0].match(/:(.*?);/)[1] || type;
-    // 去掉url的头，并转化为byte
     const bytes = window.atob(arr[1]);
-    // 处理异常,将ascii码小于0的转换为大于0
     const ab = new ArrayBuffer(bytes.length);
-    // 生成视图（直接针对内存）：8位无符号整数，长度1个字节
     const ia = new Uint8Array(ab);
     for (let i = 0; i < bytes.length; i++) {
       ia[i] = bytes.charCodeAt(i);
@@ -106,12 +98,18 @@
         return false;
       }
       this.isOpen = true;
-      const video = createVideo(this.set);
-      createImg();
-      media.then(MediaStream => {
-        const track = MediaStream.getVideoTracks()[0];
-        this.imageCapture = new ImageCapture(track);
 
+      this.canvas = createCanvas(this.set);
+      this.context = this.canvas.getContext('2d');
+      this.video = createVideo(this.set);
+
+      this.video.addEventListener("loadeddata", () => {
+        this.canvas.setAttribute('height', this.video.videoHeight);
+        this.canvas.setAttribute('width', this.video.videoWidth);
+        this.draw();
+      });
+
+      media.then(MediaStream => {
         this.mediaRecorder = new window.MediaRecorder(MediaStream);
         this.chunks = [];
         this.mediaRecorder.ondataavailable = e => {
@@ -125,41 +123,46 @@
           this.recordCallback(this.convertRecordFile(this.recorderFile))
         };
 
-        video.srcObject = MediaStream;
-        video.play();
+        this.video.srcObject = MediaStream;
+        this.video.play();
       }).catch(err => {
         console.error(err);
         this.isOpen = false;
       });
       return true;
     },
+    draw() {
+      // 计算偏移量
+      const imageWidth = this.video.videoWidth;
+      const imageHeight = this.video.videoHeight;
+      const imageRatio = imageWidth / imageHeight;
+      const canvasRatio = this.canvas.clientWidth / this.canvas.clientHeight;
+      let sx, sy, sHeight, sWidth;
+      if (imageRatio < canvasRatio) {
+        sWidth = imageWidth;
+        sHeight = sWidth / canvasRatio;
+        sx = 0;
+        sy = (imageHeight - sHeight) / 2;
+      } else {
+        sHeight = imageHeight;
+        sWidth = imageHeight * canvasRatio;
+        sy = 0;
+        sx = (imageWidth - sWidth) / 2;
+      }
+      this.context.drawImage(this.video, sx, sy, sWidth, sHeight, 0, 0, this.video.videoWidth, this.video.videoHeight);
+      this.pixels = this.context.getImageData(0, 0, video.videoWidth, video.videoHeight);
+      if (this.set.filter !== 'Normal') {
+        this.setPixels(this.set.filter, 'wasm');
+      }
+      this.context.putImageData(this.pixels, 0, 0);
+      window.requestAnimationFrame(() => {
+        this.draw();
+      });
+    },
     async shot() {
       if (!this.isOpen) return false;
-      if (!document.querySelector('#canvas')) {
-        const canvas = document.createElement('canvas');
-        canvas.id = 'canvas';
-        canvas.style.display = 'none';
-        document.body.appendChild(canvas);
-      }
-      const blob = await this.imageCapture.takePhoto();
-      const imageBitmap = await createImageBitmap(blob);
-      const canvas = document.querySelector('#canvas');
-      canvas.width = imageBitmap.width;
-      canvas.height = imageBitmap.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(imageBitmap, 0, 0, imageBitmap.width, imageBitmap.height);
-      const base64 = canvas.toDataURL('image/png');
-
-      const video = document.querySelector('#video');
-      const img = document.querySelector('#img');
-      img.style.backgroundImage = `url(${base64})`;
-      img.style.backgroundSize = `cover`;
-      img.style.backgroundPosition = `50% 50%`;
-      img.width = video.clientWidth;
-      img.height = video.clientHeight;
-      const imageCanvas = await html2canvas(img);
-      const imageBase64 = imageCanvas.toDataURL('image/png');
-      return base64ToBlob(imageBase64);
+      const base64 = this.canvas.toDataURL('image/jpeg');
+      return base64ToBlob(base64);
     },
     startRecord() {
       if (!this.isOpen) return false;
@@ -188,7 +191,134 @@
       const blob = URL.createObjectURL(file);
       return blob;
     },
-    setMediaType
+    setMediaType(type) {
+      const video = document.querySelector('#video');
+      if (type === 'video') {
+        video.style.height = 'auto';
+      }
+      if (type === 'image') {
+        video.style.height = '100%';
+      }
+    },
+    setPixels(filter) {
+      const { pixels } = this;
+      const cw = this.video.videoWidth;
+      const ch = this.video.videoHeight;
+      try {
+        switch (filter) {
+          case 'Grayscale':
+            pixels.data.set(wasm.grayScale(pixels.data));
+            break;
+          case 'Brighten':
+            pixels.data.set(wasm.brighten(pixels.data));
+            break;
+          case 'Invert':
+            pixels.data.set(wasm.invert(pixels.data));
+            break;
+          case 'Noise':
+            pixels.data.set(wasm.noise(pixels.data));
+            break;
+          case 'Sunset':
+            pixels.data.set(wasm.sunset(pixels.data, cw));
+            break;
+          case 'Analog TV':
+            pixels.data.set(wasm.analogTV(pixels.data, cw));
+            break;
+          case 'Emboss':
+            pixels.data.set(wasm.emboss(pixels.data, cw));
+            break;
+          case 'Super Edge':
+            pixels.data.set(wasm.sobelFilter(pixels.data, cw, ch));
+            break;
+          case 'Super Edge Inv':
+            pixels.data.set(wasm.sobelFilter(pixels.data, cw, ch, true));
+            break;
+          case 'Gaussian Blur':
+            pixels.data.set(wasm.blur(pixels.data, cw, ch));
+            break;
+          case 'Sharpen':
+            pixels.data.set(wasm.sharpen(pixels.data, cw, ch));
+            break;
+          case 'Uber Sharpen':
+            pixels.data.set(wasm.strongSharpen(pixels.data, cw, ch));
+            break;
+          case 'Clarity':
+            pixels.data.set(wasm.clarity(pixels.data, cw, ch));
+            break;
+          case 'Good Morning':
+            pixels.data.set(wasm.goodMorning(pixels.data, cw, ch));
+            break;
+          case 'Acid':
+            pixels.data.set(wasm.acid(pixels.data, cw, ch));
+            break;
+          case 'Urple':
+            pixels.data.set(wasm.urple(pixels.data, cw));
+            break;
+          case 'Forest':
+            pixels.data.set(wasm.forest(pixels.data, cw));
+            break;
+          case 'Romance':
+            pixels.data.set(wasm.romance(pixels.data, cw));
+            break;
+          case 'Hippo':
+            pixels.data.set(wasm.hippo(pixels.data, cw));
+            break;
+          case 'Longhorn':
+            pixels.data.set(wasm.longhorn(pixels.data, cw));
+            break;
+          case 'Underground':
+            pixels.data.set(wasm.underground(pixels.data, cw));
+            break;
+          case 'Rooster':
+            pixels.data.set(wasm.rooster(pixels.data, cw));
+            break;
+          case 'Moss':
+            pixels.data.set(wasm.moss(pixels.data, cw));
+            break;
+          case 'Mist':
+            pixels.data.set(wasm.mist(pixels.data, cw));
+            break;
+          case 'Tingle':
+            pixels.data.set(wasm.tingle(pixels.data, cw));
+            break;
+          case 'Kaleidoscope':
+            pixels.data.set(wasm.kaleidoscope(pixels.data, cw));
+            break;
+          case 'Bacteria':
+            pixels.data.set(wasm.bacteria(pixels.data, cw));
+            break;
+          case 'Dewdrops':
+            pixels.data.set(wasm.dewdrops(pixels.data, cw, ch));
+            break;
+          case 'Color Destruction':
+            pixels.data.set(wasm.destruction(pixels.data, cw, ch));
+            break;
+          case 'Hulk Edge':
+            pixels.data.set(wasm.hulk(pixels.data, cw));
+            break;
+          case 'Ghost':
+            pixels.data.set(wasm.ghost(pixels.data, cw));
+            break;
+          case 'Swasmp':
+            pixels.data.set(wasm.swasmp(pixels.data, cw));
+            break;
+          case 'Twisted':
+            pixels.data.set(wasm.twisted(pixels.data, cw));
+            break;
+          case 'Security':
+            pixels.data.set(wasm.security(pixels.data, cw));
+            break;
+          case 'Robbery':
+            pixels.data.set(wasm.robbery(pixels.data, cw));
+            break;
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    },
+    setFilter(filter) {
+      this.set.filter = filter;
+    }
   };
 
   window.BrowserMedia = BrowserMedia;
