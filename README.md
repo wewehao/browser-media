@@ -33,6 +33,7 @@ $('.start').click(async () => {
   const urlCreator = window.URL || window.webkitURL;
   const imageUrl = urlCreator.createObjectURL(await Media.shot());
   document.querySelector('#image-test').src = imageUrl;
+  Media.close(); // 关闭录像状态
 });
 
 // 开始录像 startRecord

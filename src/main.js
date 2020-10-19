@@ -110,6 +110,7 @@
       });
 
       media.then(MediaStream => {
+        this.MediaStream = MediaStream;
         this.mediaRecorder = new window.MediaRecorder(MediaStream);
         this.chunks = [];
         this.mediaRecorder.ondataavailable = e => {
@@ -131,7 +132,21 @@
       });
       return true;
     },
+    close() {
+      if (!this.isOpen) return false;
+      if (this.MediaStream) {
+        this.isOpen = false;
+        this.context.setTransform(1, 0, 0, 1, 0, 0);
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.MediaStream.getTracks().forEach(track => {
+          if (track.readyState == 'live') {
+            track.stop();
+          }
+        })
+      }
+    },
     draw() {
+      if (!this.isOpen) return false;
       // 计算偏移量
       const imageWidth = this.video.videoWidth;
       const imageHeight = this.video.videoHeight;
