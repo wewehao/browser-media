@@ -1,6 +1,6 @@
 {
   "name": "browser-media",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "browser-media 提供了在浏览器环境下通过摄像头拍照和录像的API",
   "homepage": "",
   "main": "dist/main",

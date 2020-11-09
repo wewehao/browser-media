@@ -62,6 +62,8 @@
     const Media = BrowserMedia({
       el: '.videoEl',
       type: 'image', // image || video
+      autoClose: false,
+      audio: false
     });
     Media.open();
 
@@ -69,9 +71,11 @@
       window.scrollTo({ top: 0 });
       Media.setMediaType('image');
       const urlCreator = window.URL || window.webkitURL;
-      const imageUrl = urlCreator.createObjectURL(await Media.shot());
-      document.querySelector('#image-test').src = imageUrl;
-      Media.close();
+      const src = await Media.shot()
+      if (src) {
+        const imageUrl = urlCreator.createObjectURL(src);
+        document.querySelector('#image-test').src = imageUrl;
+      }
     });
 
     $('.startRecode').click(async () => {
@@ -79,6 +83,12 @@
       Media.startRecord();
     });
 
+    /*
+    * stopRecord 结束录像
+    * callback function
+    * videoResuleType string 'file' | ''
+    * videoResuleType为'file'时返回file对象，否则返回blobSrc
+    */
     $('.stopRecode').click(async () => {
       Media.stopRecord(blob => {
         document.querySelector('#video-test').src = blob;

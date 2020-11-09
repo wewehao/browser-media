@@ -25,7 +25,8 @@
       // video: true,
       audio: true,
       type: 'image',
-      filter: 'Normal'
+      filter: 'Normal',
+      autoClose: true
     };
     if (typeof set === 'object') {
       if (set) {
@@ -84,15 +85,36 @@
     for (let i = 0; i < bytes.length; i++) {
       ia[i] = bytes.charCodeAt(i);
     }
-    return new Blob([ ab ], {
+    return new Blob([ab], {
       type: mime
     });
   }
 
   BrowserMedia.prototype = initFn.prototype = {
-    open() {
-      const media = navigator.mediaDevices && navigator.mediaDevices.getUserMedia(this.set);
-      if (!media) {
+    async open() {
+      this.recordStatus = ''
+      this.isOpen = false;
+
+      if (!navigator.mediaDevices) {
+        return false;
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices() || []
+      const cam = devices.find(function (device) {
+        return device.kind === "videoinput";
+      });
+      const mic = devices.find(function (device) {
+        return device.kind === "audioinput";
+      });
+      if (!cam) {
+        this.set.video = false;
+      }
+      if (!mic) {
+        this.set.audio = false;
+      }
+
+      const MediaStream = navigator.mediaDevices && await navigator.mediaDevices.getUserMedia(this.set);
+      if (!MediaStream) {
         console.error('navigator.mediaDevices.getUserMedia 开启失败，请检查浏览器支持及是否在本地环境或https下。');
         this.isOpen = false;
         return false;
@@ -106,30 +128,40 @@
       this.video.addEventListener("loadeddata", () => {
         this.canvas.setAttribute('height', this.video.videoHeight);
         this.canvas.setAttribute('width', this.video.videoWidth);
+
+        // canvas镜像左右翻转 未找到视频录制镜像翻转方法
+        // this.context.translate(canvas.width, 0);
+        // this.context.scale(-1, 1);
+
         this.draw();
       });
 
-      media.then(MediaStream => {
-        this.MediaStream = MediaStream;
-        this.mediaRecorder = new window.MediaRecorder(MediaStream);
+      this.MediaStream = MediaStream;
+      this.mediaRecorder = new window.MediaRecorder(MediaStream);
+      this.chunks = [];
+      this.mediaRecorder.ondataavailable = e => {
+        this.chunks.push(e.data);
+      };
+      this.mediaRecorder.onstart = () => {
+        this.recordStatus = 'recording'
+        if (this.onRecordStatusChange) {
+          this.onRecordStatusChange(this.recordStatus)
+        }
+      }
+      this.mediaRecorder.onstop = () => {
+        this.recorderFile = new Blob(this.chunks, {
+          type: this.mediaRecorder.mimeType
+        });
         this.chunks = [];
-        this.mediaRecorder.ondataavailable = e => {
-          this.chunks.push(e.data);
-        };
-        this.mediaRecorder.onstop = () => {
-          this.recorderFile = new Blob(this.chunks, {
-            type: this.mediaRecorder.mimeType
-          });
-          this.chunks = [];
-          this.recordCallback(this.convertRecordFile(this.recorderFile))
-        };
+        this.recordCallback(this.convertRecordFile(this.recorderFile))
+        this.recordStatus = ''
+        if (this.onRecordStatusChange) {
+          this.onRecordStatusChange(this.recordStatus)
+        }
+      };
 
-        this.video.srcObject = MediaStream;
-        this.video.play();
-      }).catch(err => {
-        console.error(err);
-        this.isOpen = false;
-      });
+      this.video.srcObject = MediaStream;
+      this.video.play();
       return true;
     },
     close() {
@@ -176,6 +208,13 @@
     },
     async shot() {
       if (!this.isOpen) return false;
+      if (this.recordStatus === 'recording') {
+        console.error('正在录制视频')
+        return false;
+      }
+      if (this.set.autoClose) {
+        this.close();
+      }
       const base64 = this.canvas.toDataURL('image/jpeg');
       return base64ToBlob(base64);
     },
@@ -185,23 +224,30 @@
         this.mediaRecorder.start();
       }
     },
-    stopRecord(callback) {
+    stopRecord(callback, videoResultType) {
       if (!this.isOpen) return false;
       if (this.mediaRecorder) {
         if (callback) {
           this.recordCallback = callback;
         }
+        if (videoResultType) {
+          this.videoResultType = videoResultType;
+        }
         this.mediaRecorder.stop();
+        if (this.set.autoClose) {
+          this.close();
+        }
       }
     },
     convertRecordFile(recorderFile) {
       const file = new File(
-        [ recorderFile ],
+        [recorderFile],
         'msr-' + new Date().toISOString().replace(/:|\./g, '-') + '.mp4',
         {
           type: 'video/mp4'
         }
       );
+      if (this.videoResultType === 'file') return file;
       const URL = window.URL || window.webkitURL;
       const blob = URL.createObjectURL(file);
       return blob;

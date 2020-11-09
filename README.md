@@ -24,6 +24,8 @@
 const Media = BrowserMedia({
   el: '.videoEl', // video挂载的节点
   type: 'image', // image || video
+  autoClose: true, // 是否在拍照/视频后自动关闭media
+  audio: false
 });
 Media.open(); // 初始化
 
@@ -42,7 +44,12 @@ $('.startRecode').click(async () => {
   Media.startRecord();
 });
 
-// 结束录像 stopRecord
+/*
+* stopRecord 结束录像
+* callback function
+* videoResuleType string 'file' | ''
+* videoResuleType为'file'时返回file对象，否则返回blobSrc
+*/
 $('.stopRecode').click(async () => {
   Media.stopRecord(blob => {
     document.querySelector('#video-test').src = blob;
